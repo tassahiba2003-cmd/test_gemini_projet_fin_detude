@@ -1,77 +1,34 @@
 export const mockHomeData = {
-  welcomeMessage: {
-    title: "Bienvenue chez Althea Systems",
-    content: "Votre partenaire de confiance pour l'équipement médical de pointe. Depuis plus de 15 ans, nous accompagnons les hôpitaux, cliniques et cabinets privés en fournissant des solutions d'imagerie, de chirurgie et de monitorage fiables et innovantes."
-  },
   carousel: [
     {
-      id: "slide-1",
-      title: "Équipement d'Imagerie de Pointe",
-      subtitle: "Des diagnostics précis grâce à notre nouvelle gamme de scanners IRM et d'échographes.",
-      imageUrl: "https://images.unsplash.com/photo-1516549655169-df83a0774514?q=80&w=1200",
-      buttonText: "Découvrir l'imagerie",
-      link: "/products?category=Imagerie"
+      id: 1,
+      title: "L'Excellence Médicale",
+      subtitle: "Équipements de haute précision pour votre établissement de santé.",
+      buttonText: "Voir l'Imagerie",
+      link: "/categories/imagerie",
+      imageUrl: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=1200"
     },
     {
-      id: "slide-2",
-      title: "Matériel de Bloc Opératoire",
-      subtitle: "Sécurité et ergonomie pour vos interventions chirurgicales les plus complexes.",
-      imageUrl: "https://images.unsplash.com/photo-1551076805-e1869033e561?q=80&w=1200",
-      buttonText: "Voir les équipements",
-      link: "/products?category=Chirurgie"
+      id: 2,
+      title: "Mobilier & Confort",
+      subtitle: "Des lits et fauteuils pensés pour le bien-être de vos patients.",
+      buttonText: "Voir le Mobilier",
+      link: "/categories/mobilier",
+      imageUrl: "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=1200"
     },
     {
-      id: "slide-3",
-      title: "Monitorage Patient Avancé",
-      subtitle: "Surveillez les constantes vitales avec une fiabilité inégalée.",
-      imageUrl: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=1200",
-      buttonText: "Voir les moniteurs",
-      link: "/products?category=Monitorage"
+      id: 3,
+      title: "Équipement de Pointe",
+      subtitle: "Modernisez votre bloc opératoire avec Althea Systems.",
+      buttonText: "Bloc Opératoire",
+      link: "/categories/chirurgie",
+      imageUrl: "https://images.unsplash.com/photo-1551076805-e166946c9ebf?w=1200"
     }
   ],
-  categories: [
-    {
-      id: "cat-1",
-      name: "Imagerie Médicale",
-      imageUrl: "https://images.unsplash.com/photo-1516549655169-df83a0774514?q=80&w=600",
-      link: "/products?category=Imagerie",
-      order: 1
-    },
-    {
-      id: "cat-2",
-      name: "Chirurgie & Bloc",
-      imageUrl: "https://images.unsplash.com/photo-1551076805-e1869033e561?q=80&w=600",
-      link: "/products?category=Chirurgie",
-      order: 2
-    },
-    {
-      id: "cat-3",
-      name: "Monitorage",
-      imageUrl: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=600",
-      link: "/products?category=Monitorage",
-      order: 3
-    }
-  ],
-  topProducts: [
-    { 
-      id: "top-1", 
-      name: "Scanner IRM 3 Tesla", 
-      imageUrl: "https://images.unsplash.com/photo-1516549655169-df83a0774514?q=80&w=400" 
-    },
-    { 
-      id: "top-2", 
-      name: "Échographe Portable", 
-      imageUrl: "https://images.unsplash.com/photo-1559757175-5700dde675bc?q=80&w=400" 
-    },
-    { 
-      id: "top-3", 
-      name: "Moniteur Multiparamétrique", 
-      imageUrl: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=400" 
-    },
-    { 
-      id: "top-4", 
-      name: "Table d'opération", 
-      imageUrl: "https://images.unsplash.com/photo-1551076805-e1869033e561?q=80&w=400" 
-    }
-  ]
+  welcomeMessage: {
+    title: "Bienvenue chez Althea Systems",
+    content: "Nous fournissons les meilleurs équipements médicaux pour les professionnels de la santé. Découvrez notre vaste catalogue regroupant l'imagerie, le mobilier, l'équipement de laboratoire et le matériel de bloc opératoire."
+  },
+  // On met ici les IDs de quelques produits phares des différentes catégories
+  featuredProductIds: [101, 201, 301, 401, 501, 602] 
 };
