@@ -1,68 +1,60 @@
 "use client";
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState } from "react";
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
-  const [isLoggedIn] = useState(false); // Simulation : à changer plus tard pour la connexion
 
-  // Charger le panier au démarrage depuis le stockage du navigateur
-  useEffect(() => {
-    const savedCart = localStorage.getItem("althea_cart");
-    if (savedCart) setCart(JSON.parse(savedCart));
-  }, []);
-
-  // Sauvegarder à chaque modification
-  useEffect(() => {
-    localStorage.setItem("althea_cart", JSON.stringify(cart));
-  }, [cart]);
-
-  const addToCart = (product) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        return prev.map((item) => {
-          // On vérifie le stock même à l'ajout direct
-          const realMaxStock = item.stockQuantity || 1;
-          const newQty = Math.min(item.quantity + 1, realMaxStock);
-          return item.id === product.id ? { ...item, quantity: newQty } : item;
-        });
+  // 🛒 Fonction pour AJOUTER depuis la page produit (avec alerte)
+  const addToCart = (product, quantity = 1) => {
+    let success = false;
+    setCart((prevCart) => {
+      const existingItem = prevCart.find((item) => item.id === product.id);
+      const currentQty = existingItem ? existingItem.quantity : 0;
+      
+      if (currentQty + quantity > product.stockCount) {
+        alert(`Désolé, il n'y a que ${product.stockCount} exemplaires disponibles au total.`);
+        return prevCart;
       }
-      return [...prev, { ...product, quantity: 1 }];
+      success = true;
+      if (existingItem) {
+        return prevCart.map((item) =>
+          item.id === product.id ? { ...item, quantity: currentQty + quantity } : item
+        );
+      }
+      return [...prevCart, { ...product, quantity }];
+    });
+    if (success) {
+      alert(`${quantity}x ${product.name} a été ajouté à votre panier !`);
+    }
+  };
+
+  // 🔄 NOUVELLE FONCTION : Modifier la quantité DANS LE PANIER (silencieux et sécurisé)
+  const updateQuantity = (productId, newQuantity) => {
+    setCart((prevCart) => {
+      return prevCart.map((item) => {
+        if (item.id === productId) {
+          // Sécurité absolue : on reste entre 1 et le stock maximum du produit
+          const safeQuantity = Math.max(1, Math.min(item.stockCount, newQuantity));
+          return { ...item, quantity: safeQuantity };
+        }
+        return item;
+      });
     });
   };
 
-  const removeFromCart = (id) => setCart((prev) => prev.filter((item) => item.id !== id));
-
-  // 💡 NOUVEAU : Fonction pour vider tout le panier d'un coup
-  const clearCart = () => setCart([]);
-
-  const updateQuantity = (id, delta) => {
-    setCart((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          // 💡 On prend le VRAI stock depuis la BDD
-          const realMaxStock = item.stockQuantity || 1;
-          
-          // La quantité ne peut pas descendre sous 1, ni dépasser le stock réel
-          const newQty = Math.max(1, Math.min(item.quantity + delta, realMaxStock));
-          return { ...item, quantity: newQty };
-        }
-        return item;
-      })
-    );
+  // 🗑️ Fonction pour SUPPRIMER du panier
+  const removeFromCart = (productId) => {
+    setCart(cart.filter((item) => item.id !== productId));
   };
 
-  const cartTotalHT = cart.reduce((acc, item) => 
-    item.inStock ? acc + item.price * item.quantity : acc, 0
-  );
+  // 🔢 Compteurs
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
+  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
   return (
-    <CartContext.Provider value={{ 
-      cart, addToCart, removeFromCart, updateQuantity, clearCart, 
-      cartTotalHT, isLoggedIn 
-    }}>
+    <CartContext.Provider value={{ cart, addToCart, updateQuantity, removeFromCart, cartCount, cartTotal }}>
       {children}
     </CartContext.Provider>
   );
