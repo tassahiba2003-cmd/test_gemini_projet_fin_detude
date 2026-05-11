@@ -1,12 +1,33 @@
 "use client";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
+  const [isLoaded, setIsLoaded] = useState(false); // Pour éviter les bugs de chargement au début
 
-  // 🛒 Fonction pour AJOUTER depuis la page produit (avec alerte)
+  // 📥 1. CHARGEMENT au démarrage (Une seule fois)
+  useEffect(() => {
+    const savedCart = localStorage.getItem("althea_cart");
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        console.error("Erreur de lecture du panier", e);
+      }
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // 💾 2. SAUVEGARDE automatique dès que le panier change
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("althea_cart", JSON.stringify(cart));
+    }
+  }, [cart, isLoaded]);
+
+  // 🛒 AJOUTER avec sécurité stock
   const addToCart = (product, quantity = 1) => {
     let success = false;
     setCart((prevCart) => {
@@ -14,7 +35,7 @@ export function CartProvider({ children }) {
       const currentQty = existingItem ? existingItem.quantity : 0;
       
       if (currentQty + quantity > product.stockCount) {
-        alert(`Désolé, il n'y a que ${product.stockCount} exemplaires disponibles au total.`);
+        alert(`Désolé, il n'y a que ${product.stockCount} exemplaires disponibles.`);
         return prevCart;
       }
       success = true;
@@ -26,16 +47,15 @@ export function CartProvider({ children }) {
       return [...prevCart, { ...product, quantity }];
     });
     if (success) {
-      alert(`${quantity}x ${product.name} a été ajouté à votre panier !`);
+      alert(`${quantity}x ${product.name} ajouté !`);
     }
   };
 
-  // 🔄 NOUVELLE FONCTION : Modifier la quantité DANS LE PANIER (silencieux et sécurisé)
+  // 🔄 MODIFIER QUANTITÉ
   const updateQuantity = (productId, newQuantity) => {
     setCart((prevCart) => {
       return prevCart.map((item) => {
         if (item.id === productId) {
-          // Sécurité absolue : on reste entre 1 et le stock maximum du produit
           const safeQuantity = Math.max(1, Math.min(item.stockCount, newQuantity));
           return { ...item, quantity: safeQuantity };
         }
@@ -44,12 +64,11 @@ export function CartProvider({ children }) {
     });
   };
 
-  // 🗑️ Fonction pour SUPPRIMER du panier
+  // 🗑️ SUPPRIMER
   const removeFromCart = (productId) => {
     setCart(cart.filter((item) => item.id !== productId));
   };
 
-  // 🔢 Compteurs
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
   const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
