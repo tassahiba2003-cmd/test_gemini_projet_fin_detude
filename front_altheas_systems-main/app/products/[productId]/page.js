@@ -1,26 +1,29 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation"; // Ajout de useRouter pour la redirection
 import Link from "next/link";
 import { fetchProductById, fetchSimilarProducts } from "../../../services/api/catalogApi";
 import { useCart } from "../../../context/CartContext";
 
 export default function ProductDetailPage() {
   const { productId } = useParams();
+  const router = useRouter(); // Initialisation du routeur
   const [product, setProduct] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   
-  // 🛒 On récupère les infos du panier pour notre calcul
   const { cart, addToCart } = useCart();
 
   useEffect(() => {
     async function loadData() {
       const data = await fetchProductById(productId);
-      const similar = await fetchSimilarProducts(productId);
-      setProduct(data);
-      setSimilarProducts(similar);
+      if (data) {
+        // Correction : On passe l'ID de la catégorie pour avoir des produits similaires réels
+        const similar = await fetchSimilarProducts(productId, data.categoryId);
+        setProduct(data);
+        setSimilarProducts(similar);
+      }
       setLoading(false);
     }
     loadData();
@@ -29,16 +32,19 @@ export default function ProductDetailPage() {
   if (loading) return <div style={{ padding: "100px", textAlign: "center" }}>Chargement du produit...</div>;
   if (!product) return <div style={{ padding: "100px", textAlign: "center" }}><h1>Produit introuvable</h1><Link href="/">Retour</Link></div>;
 
-  // 🧠 LE CALCUL INTELLIGENT DU STOCK
-  // 1. On cherche si le produit est déjà dans le panier
+  // 🧠 LOGIQUE DE STOCK (Identique à ton code)
   const itemInCart = cart.find(item => item.id == product.id);
-  // 2. On regarde combien il y en a (sinon 0)
   const qtyInCart = itemInCart ? itemInCart.quantity : 0;
-  // 3. On calcule combien on a encore le droit d'en ajouter
   const availableStock = product.stockCount - qtyInCart;
 
-  // 🔄 Sécurité d'affichage : Si le stock dispo a baissé et que ma sélection est trop haute, je la corrige
+  // Sécurité d'affichage
   const displayQuantity = quantity > availableStock ? Math.max(1, availableStock) : quantity;
+
+  // Fonction pour le bouton "Acheter maintenant"
+  const handleBuyNow = () => {
+    addToCart(product, displayQuantity);
+    router.push('/cart'); // Redirection immédiate vers le panier
+  };
 
   return (
     <main style={{ maxWidth: "1200px", margin: "40px auto", padding: "20px", fontFamily: "sans-serif" }}>
@@ -51,7 +57,6 @@ export default function ProductDetailPage() {
         <span style={{ marginLeft: "5px", color: "#0f172a" }}>{product.name}</span>
       </nav>
 
-      {/* 📦 HAUT DE PAGE */}
       <div style={{ display: "flex", gap: "60px", flexWrap: "wrap", marginBottom: "80px" }}>
         
         {/* 📸 IMAGE À GAUCHE */}
@@ -71,7 +76,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* ℹ️ INFORMATIONS À DROITE */}
+        {/* ℹ️ INFOS À DROITE */}
         <div style={{ flex: "1", minWidth: "350px", display: "flex", flexDirection: "column" }}>
           <span style={{ color: "#2563eb", fontWeight: "bold", textTransform: "uppercase", fontSize: "0.9rem", letterSpacing: "1px", marginBottom: "10px", display: "block" }}>
             {product.categoryName}
@@ -85,81 +90,71 @@ export default function ProductDetailPage() {
           <div style={{ backgroundColor: "#f8fafc", padding: "25px", borderRadius: "16px", marginBottom: "30px", border: "1px solid #e2e8f0" }}>
             <h3 style={{ margin: "0 0 10px 0", fontSize: "1.2rem", color: "#0f172a" }}>Description</h3>
             <p style={{ color: "#475569", lineHeight: "1.7", margin: 0, fontSize: "1.05rem" }}>
-              {product.description || "Équipement professionnel haute performance."}
+              {product.description}
             </p>
           </div>
 
-          {product.specs && product.specs.length > 0 && (
+          {/* Caractéristiques */}
+          {product.specs && (
             <div style={{ marginBottom: "20px" }}>
-              <h3 style={{ margin: "0 0 15px 0", fontSize: "1.2rem", color: "#0f172a" }}>Caractéristiques techniques</h3>
-              <ul style={{ paddingLeft: "20px", color: "#64748b", margin: 0 }}>
-                {product.specs.map((spec, i) => (
-                  <li key={i} style={{ marginBottom: "10px", fontSize: "1.05rem" }}>{spec}</li>
-                ))}
+              <ul style={{ paddingLeft: "20px", color: "#64748b" }}>
+                {product.specs.map((spec, i) => <li key={i} style={{ marginBottom: "8px" }}>{spec}</li>)}
               </ul>
             </div>
           )}
 
-          {/* Affichage du stock adaptatif */}
-          {product.inStock && availableStock > 0 && (
-            <p style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.95rem", marginBottom: "20px" }}>
-              ✓ En stock ({availableStock} dispo{availableStock > 1 ? "s" : ""} à l'ajout)
-            </p>
-          )}
-
-          {/* 🛒 GESTION DES BOUTONS SELON LE STOCK RESTANT */}
+          {/* 🛒 ACTIONS (AJOUTER & ACHETER) */}
           {!product.inStock ? (
-            <div style={{ marginTop: "auto" }}>
-              <p style={{ color: "#dc2626", fontWeight: "bold", marginBottom: "10px", fontSize: "1.1rem" }}>⚠️ Cet article est indisponible.</p>
-              <button disabled style={{ width: "100%", padding: "20px", backgroundColor: "#f1f5f9", color: "#94a3b8", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "1.2rem", fontWeight: "bold", cursor: "not-allowed" }}>
-                Rupture de stock
-              </button>
-            </div>
+            <button disabled style={{ width: "100%", padding: "20px", backgroundColor: "#f1f5f9", color: "#94a3b8", border: "1px solid #e2e8f0", borderRadius: "12px", fontWeight: "bold", cursor: "not-allowed" }}>
+              Rupture de stock
+            </button>
           ) : availableStock <= 0 ? (
-            <div style={{ marginTop: "auto" }}>
-              <p style={{ color: "#eab308", fontWeight: "bold", marginBottom: "10px", fontSize: "1.1rem" }}>
-                🛒 Vous avez pris tout le stock disponible.
-              </p>
-              <button disabled style={{ width: "100%", padding: "20px", backgroundColor: "#fef9c3", color: "#ca8a04", border: "1px solid #fde047", borderRadius: "12px", fontSize: "1.2rem", fontWeight: "bold", cursor: "not-allowed" }}>
-                Quantité maximale atteinte
-              </button>
-            </div>
+            <button disabled style={{ width: "100%", padding: "20px", backgroundColor: "#fef9c3", color: "#ca8a04", border: "1px solid #fde047", borderRadius: "12px", fontWeight: "bold" }}>
+              Stock maximum dans votre panier
+            </button>
           ) : (
-            <div style={{ display: "flex", gap: "15px", alignItems: "center", marginTop: "auto" }}>
-              {/* Le Sélecteur Intelligent avec availableStock */}
-              <div style={{ display: "flex", alignItems: "center", border: "2px solid #e2e8f0", borderRadius: "12px", padding: "5px", backgroundColor: "white" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+              <p style={{ color: "#16a34a", fontWeight: "bold", fontSize: "0.95rem" }}>
+                ✓ En stock ({availableStock} disponibles)
+              </p>
+              
+              <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                {/* Sélecteur de quantité */}
+                <div style={{ display: "flex", alignItems: "center", border: "2px solid #e2e8f0", borderRadius: "12px", padding: "5px", backgroundColor: "white" }}>
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, displayQuantity - 1))} 
+                    disabled={displayQuantity <= 1}
+                    style={{ background: "none", border: "none", padding: "10px 20px", cursor: "pointer", fontSize: "1.5rem", color: displayQuantity <= 1 ? "#cbd5e1" : "#0f172a" }}
+                  >-</button>
+                  <span style={{ width: "40px", textAlign: "center", fontWeight: "bold", fontSize: "1.2rem" }}>{displayQuantity}</span>
+                  <button 
+                    onClick={() => setQuantity(Math.min(availableStock, displayQuantity + 1))} 
+                    disabled={displayQuantity >= availableStock}
+                    style={{ background: "none", border: "none", padding: "10px 20px", cursor: "pointer", fontSize: "1.5rem", color: displayQuantity >= availableStock ? "#cbd5e1" : "#0f172a" }}
+                  >+</button>
+                </div>
+
+                {/* Bouton secondaire : Ajouter au Panier */}
                 <button 
-                  onClick={() => setQuantity(Math.max(1, displayQuantity - 1))} 
-                  disabled={displayQuantity <= 1}
-                  style={{ background: "none", border: "none", padding: "10px 20px", cursor: displayQuantity <= 1 ? "not-allowed" : "pointer", fontSize: "1.5rem", color: displayQuantity <= 1 ? "#cbd5e1" : "#0f172a" }}
+                  onClick={() => addToCart(product, displayQuantity)}
+                  style={{ flex: 1, padding: "18px", backgroundColor: "white", color: "#2563eb", border: "2px solid #2563eb", borderRadius: "12px", fontWeight: "bold", cursor: "pointer" }}
                 >
-                  -
-                </button>
-                
-                <span style={{ width: "40px", textAlign: "center", fontWeight: "bold", fontSize: "1.2rem", color: "#0f172a" }}>
-                  {displayQuantity}
-                </span>
-                
-                <button 
-                  onClick={() => setQuantity(Math.min(availableStock, displayQuantity + 1))} 
-                  disabled={displayQuantity >= availableStock}
-                  style={{ background: "none", border: "none", padding: "10px 20px", cursor: displayQuantity >= availableStock ? "not-allowed" : "pointer", fontSize: "1.5rem", color: displayQuantity >= availableStock ? "#cbd5e1" : "#0f172a" }}
-                >
-                  +
+                  Ajouter au panier
                 </button>
               </div>
 
-              {/* Bouton d'ajout */}
+              {/* Bouton principal : ACHETER MAINTENANT */}
               <button 
-                onClick={() => {
-                  addToCart(product, displayQuantity);
-                  setQuantity(1); // On remet le compteur à 1 après avoir ajouté !
+                onClick={handleBuyNow}
+                style={{ 
+                  width: "100%", padding: "20px", backgroundColor: "#2563eb", color: "white", 
+                  border: "none", borderRadius: "12px", fontSize: "1.2rem", fontWeight: "bold", 
+                  cursor: "pointer", boxShadow: "0 10px 20px rgba(37, 99, 235, 0.2)", transition: "all 0.2s" 
                 }}
-                style={{ flex: 1, padding: "20px", backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: "12px", fontSize: "1.2rem", fontWeight: "bold", cursor: "pointer", boxShadow: "0 10px 20px rgba(37, 99, 235, 0.2)", transition: "all 0.2s" }}
                 onMouseEnter={e => e.currentTarget.style.backgroundColor = "#1d4ed8"}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = "#2563eb"}
               >
-                Ajouter au Panier
+                Acheter maintenant
               </button>
             </div>
           )}

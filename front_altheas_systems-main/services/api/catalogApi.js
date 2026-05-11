@@ -18,17 +18,17 @@ const getFlattenedProducts = () => {
   return allProducts;
 };
 
-// 1. Récupère un seul produit par son ID (Utilisé par la page Détail Produit)
+// 1. Récupère un seul produit par son ID
 export async function fetchProductById(productId) {
   if (API_CONFIG.useMocks) {
     const products = getFlattenedProducts();
-    // 💡 On utilise == pour que l'ID "101" (URL) trouve l'ID 101 (Nombre)
+    // Utilisation de == pour la compatibilité ID texte/nombre
     return products.find(p => p.id == productId) || null;
   }
   return null;
 }
 
-// 2. Récupère une catégorie entière (Utilisé par la page Catégorie)
+// 2. Récupère une catégorie entière
 export async function fetchCategoryById(categoryId) {
   if (API_CONFIG.useMocks) {
     return mockCatalogData[categoryId] || null;
@@ -36,7 +36,7 @@ export async function fetchCategoryById(categoryId) {
   return null;
 }
 
-// 3. Récupère uniquement les produits d'une catégorie (C'est ça qui manquait !)
+// 3. Récupère uniquement les produits d'une catégorie
 export async function fetchProductsByCategory(categoryId) {
   if (API_CONFIG.useMocks) {
     const category = mockCatalogData[categoryId];
@@ -45,7 +45,7 @@ export async function fetchProductsByCategory(categoryId) {
   return [];
 }
 
-// 4. Récupère TOUS les produits (Utilisé pour la barre de recherche ou la page Tous les produits)
+// 4. Récupère TOUS les produits (pour la recherche)
 export async function fetchAllProducts() {
   if (API_CONFIG.useMocks) {
     return getFlattenedProducts();
@@ -53,12 +53,29 @@ export async function fetchAllProducts() {
   return [];
 }
 
-// 5. Récupère des produits similaires (Utilisé en bas de la page Détail Produit)
-export async function fetchSimilarProducts(productId) {
+// 5. Récupère 6 produits similaires (Même catégorie + Priorité au Stock)
+// 🚀 UNE SEULE DÉFINITION ICI POUR ÉVITER L'ERREUR "DEFINED MULTIPLE TIMES"
+export async function fetchSimilarProducts(productId, categoryId) {
   if (API_CONFIG.useMocks) {
-    const products = getFlattenedProducts();
-    // On prend 4 autres produits au hasard
-    return products.filter(p => p.id != productId).slice(0, 4);
+    const category = mockCatalogData[categoryId];
+    if (!category) {
+        // Si pas de catégorie, on prend n'importe quels produits au hasard
+        const all = getFlattenedProducts();
+        return all.filter(p => p.id != productId).slice(0, 6);
+    }
+
+    // 1. On filtre pour exclure le produit actuel
+    const otherProducts = category.products.filter(p => p.id != productId);
+
+    // 2. On trie : ceux en stock d'abord (inStock: true avant inStock: false)
+    const sortedSimilar = [...otherProducts].sort((a, b) => {
+      if (a.inStock && !b.inStock) return -1;
+      if (!a.inStock && b.inStock) return 1;
+      return 0;
+    });
+
+    // 3. On en prend 6 maximum
+    return sortedSimilar.slice(0, 6);
   }
   return [];
 }
