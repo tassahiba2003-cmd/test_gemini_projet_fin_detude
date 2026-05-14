@@ -1,6 +1,3 @@
-// Schéma unique PostgreSQL (Neon, même base que admin/catalog) : auth, panier, commandes,
-// contact et chat support.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -34,18 +31,29 @@ model CartItem {
 }
 
 model User {
-  id               Int       @id @default(autoincrement())
-  fullName         String    @map("full_name")
-  email            String    @unique
-  passwordHash     String    @map("password_hash")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  isEmailConfirmed Boolean   @default(false) @map("is_email_confirmed")
-  role             String    @default("CUSTOMER")
-  status           String    @default("ACTIVE")
-  locked           Boolean   @default(false)
-  cart             Cart?
-  addresses        Address[]
-  orders           Order[]
+  id                Int       @id @default(autoincrement())
+  fullName          String    @map("full_name")
+  email             String    @unique
+  password          String    @map("password_hash")
+  company           String?
+  siret             String?
+  specialty         String?
+  address           String?
+  city              String?
+  zipCode           String?
+  phone             String?
+  isVerified        Boolean   @default(false)
+  verificationToken String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  role              String    @default("CUSTOMER")
+  status            String    @default("ACTIVE")
+  locked            Boolean   @default(false)
+
+  // Les fameuses relations qui manquaient !
+  cart              Cart?
+  addresses         Address[]
+  orders            Order[]
 
   @@map("User")
 }
@@ -95,13 +103,12 @@ model OrderItem {
   @@map("order_item")
 }
 
-// Aligné sur com.althea.shared.model.ContactMessage (table contact_message)
 model ContactMessage {
   id              Int       @id @default(autoincrement())
   fullName        String    @map("full_name")
   email           String
   subject         String
-  message         String    
+  message         String
   status          String    @default("NEW")
   createdAt       DateTime  @default(now()) @map("created_at")
   responseMessage String?   @map("response_message")
@@ -126,7 +133,7 @@ model ChatMessage {
   sessionId Int         @map("session_id")
   session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sender    String
-  text      String     
+  text      String
   createdAt DateTime    @default(now()) @map("created_at")
 
   @@map("chat_message")

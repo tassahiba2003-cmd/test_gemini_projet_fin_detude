@@ -32,12 +32,14 @@ function frontendBaseUrl() {
 // --- 1. L'INSCRIPTION ---
 exports.register = async (req, res) => {
     try {
-        const { fullName, email, password } = req.body;
+        // ✅ AJOUT : Récupération des nouveaux champs professionnels depuis le Front
+        const { fullName, email, password, company, siret, specialty, address, city, zipCode } = req.body;
 
         const fullNameTrim = fullName != null ? String(fullName).trim() : '';
         const emailClean = email != null ? String(email).toLowerCase().trim() : '';
         const passwordRaw = password != null ? String(password) : '';
 
+        // 🛡️ TES VÉRIFICATIONS INTACTES
         if (!fullNameTrim || !emailClean || !passwordRaw.trim()) {
             return res.status(400).json({ message: "Tous les champs sont obligatoires." });
         }
@@ -62,8 +64,19 @@ exports.register = async (req, res) => {
 
         const passwordHash = await bcrypt.hash(passwordRaw, 10);
 
+        // ✅ AJOUT : Insertion des nouveaux champs dans Prisma
         const newUser = await prisma.user.create({
-            data: { fullName: fullNameTrim, email: emailClean, passwordHash }
+            data: { 
+                fullName: fullNameTrim, 
+                email: emailClean, 
+                passwordHash,
+                company: company || null,
+                siret: siret || null,
+                specialty: specialty || null,
+                address: address || null,
+                city: city || null,
+                zipCode: zipCode || null
+            }
         });
 
         const validationToken = jwt.sign(
@@ -73,7 +86,7 @@ exports.register = async (req, res) => {
         );
         const confirmationPath = `${frontendBaseUrl()}/auth/confirm?token=${encodeURIComponent(validationToken)}`;
 
-        // SIMULATION D'ENVOI D'E-MAIL
+        // SIMULATION D'ENVOI D'E-MAIL (Intact)
         console.log("\n=========================================");
         console.log("📧 NOUVEL E-MAIL À ENVOYER À :", newUser.email);
         console.log("Lien de confirmation (page Althea) :");
@@ -86,7 +99,6 @@ exports.register = async (req, res) => {
         res.status(500).json({ message: "Erreur serveur lors de l'inscription." });
     }
 };
-
 // --- 1b. Confirmer l’e-mail + session (clic sur le lien → front → POST ici) ---
 exports.confirmEmail = async (req, res) => {
     try {
