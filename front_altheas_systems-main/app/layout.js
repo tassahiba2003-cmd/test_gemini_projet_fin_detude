@@ -4,16 +4,22 @@ import Image from "next/image";
 import DesktopFooter from "../components/layout/DesktopFooter";
 import ChatWidget from "../components/chat/ChatWidget";
 import HeaderSearchBar from "../components/layout/HeaderSearchBar";
+// 👈 NOUVEAU : Import du composant MiniCart (assure-toi de l'avoir créé !)
+import MiniCart from "../components/cart/MiniCart"; 
 // 🛒 Import du Context et du Hook pour le compteur
 import { CartProvider, useCart } from "../context/CartContext";
 
 // Petit composant interne pour gérer le lien du panier avec son badge
 function NavCartLink() {
-  const { cart } = useCart();
+  const { cart, setIsMiniCartOpen } = useCart(); // 👈 Modification : on récupère setIsMiniCartOpen
   const itemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <Link href="/cart" style={{ color: "white", textDecoration: "none", display: "flex", alignItems: "center", gap: "5px" }}>
+    // 👈 Modification : Changement du composant Link en button pour ouvrir le panel
+    <button 
+      onClick={() => setIsMiniCartOpen(true)}
+      style={{ background: "none", border: "none", color: "white", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer", fontSize: "1rem", padding: 0, fontWeight: "500", fontFamily: "inherit" }}
+    >
       Panier
       {itemCount > 0 && (
         <span style={{
@@ -29,7 +35,7 @@ function NavCartLink() {
           {itemCount}
         </span>
       )}
-    </Link>
+    </button>
   );
 }
 
@@ -39,6 +45,9 @@ export default function RootLayout({ children }) {
       <body style={{ margin: 0, padding: 0 }}>
         {/* 🛒 CartProvider enveloppe tout pour que l'état du panier soit partagé */}
         <CartProvider>
+          
+          {/* 👈 NOUVEAU : On ajoute le MiniCart ici, il se superposera au reste du site quand il sera ouvert */}
+          <MiniCart />
           
           <header style={{ 
             padding: "1rem 2rem", 

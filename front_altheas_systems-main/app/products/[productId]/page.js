@@ -42,7 +42,7 @@ export default function ProductDetailPage() {
 
   // Fonction pour le bouton "Acheter maintenant"
   const handleBuyNow = () => {
-    addToCart(product, displayQuantity);
+    addToCart(product, displayQuantity, false); // 👈 MODIFICATION : On n'ouvre pas le mini-panier car on redirige
     router.push('/cart'); // Redirection immédiate vers le panier
   };
 
@@ -136,7 +136,7 @@ export default function ProductDetailPage() {
 
                 {/* Bouton secondaire : Ajouter au Panier */}
                 <button 
-                  onClick={() => addToCart(product, displayQuantity)}
+                  onClick={() => addToCart(product, displayQuantity, true)} // 👈 MODIFICATION : Le true permet d'ouvrir le mini-panier
                   style={{ flex: 1, padding: "18px", backgroundColor: "white", color: "#2563eb", border: "2px solid #2563eb", borderRadius: "12px", fontWeight: "bold", cursor: "pointer" }}
                 >
                   Ajouter au panier

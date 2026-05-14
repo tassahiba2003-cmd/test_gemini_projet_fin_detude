@@ -6,6 +6,7 @@ const CartContext = createContext();
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false); // Pour éviter les bugs de chargement au début
+  const [isMiniCartOpen, setIsMiniCartOpen] = useState(false); // 👈 NOUVEAU: État pour le mini-panier
 
   // 📥 1. CHARGEMENT au démarrage (Une seule fois)
   useEffect(() => {
@@ -28,7 +29,8 @@ export function CartProvider({ children }) {
   }, [cart, isLoaded]);
 
   // 🛒 AJOUTER avec sécurité stock
-  const addToCart = (product, quantity = 1) => {
+  // 👈 MODIFICATION : ajout du paramètre openMiniCart et suppression du alert()
+  const addToCart = (product, quantity = 1, openMiniCart = true) => {
     let success = false;
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === product.id);
@@ -39,16 +41,20 @@ export function CartProvider({ children }) {
         return prevCart;
       }
       success = true;
+      let newCart;
       if (existingItem) {
-        return prevCart.map((item) =>
+        newCart = prevCart.map((item) =>
           item.id === product.id ? { ...item, quantity: currentQty + quantity } : item
         );
+      } else {
+        newCart = [...prevCart, { ...product, quantity }];
       }
-      return [...prevCart, { ...product, quantity }];
+      
+      // 👈 NOUVEAU : Ouverture du mini-panier
+      if (openMiniCart) setIsMiniCartOpen(true);
+      
+      return newCart;
     });
-    if (success) {
-      alert(`${quantity}x ${product.name} ajouté !`);
-    }
   };
 
   // 🔄 MODIFIER QUANTITÉ
@@ -73,7 +79,16 @@ export function CartProvider({ children }) {
   const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, updateQuantity, removeFromCart, cartCount, cartTotal }}>
+    <CartContext.Provider value={{ 
+        cart, 
+        addToCart, 
+        updateQuantity, 
+        removeFromCart, 
+        cartCount, 
+        cartTotal,
+        isMiniCartOpen,       // 👈 NOUVEAU
+        setIsMiniCartOpen     // 👈 NOUVEAU
+    }}>
       {children}
     </CartContext.Provider>
   );
