@@ -1,9 +1,11 @@
+const cors = require('cors');
+
+
 // LIGNE 1 OBLIGATOIRE : Charge le .env avant de faire quoi que ce soit d'autre
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes.js');
 
 const express = require('express');
-const cors = require('cors');
 const helmet = require('helmet');
 const authRoutes = require('./routes/authRoutes');
 const cartRoutes = require('./routes/cartRoutes');

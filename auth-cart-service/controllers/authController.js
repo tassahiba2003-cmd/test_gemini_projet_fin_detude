@@ -69,8 +69,7 @@ exports.register = async (req, res) => {
             data: { 
                 fullName: fullNameTrim, 
                 email: emailClean, 
-                passwordHash,
-                company: company || null,
+                password: passwordHash, 
                 siret: siret || null,
                 specialty: specialty || null,
                 address: address || null,
