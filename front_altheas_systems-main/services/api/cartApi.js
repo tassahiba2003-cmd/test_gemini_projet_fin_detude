@@ -12,8 +12,11 @@ export async function fetchCart() {
       totals: computeCartTotals(mockCart.items),
     };
   }
-  // Ton httpClient s'occupe automatiquement d'ajouter le token de connexion !
-  return httpClient(API_ROUTES.cart.get);
+  
+
+  const cacheBusterUrl = `${API_ROUTES.cart.get}?t=${new Date().getTime()}`;
+  
+  return httpClient(cacheBusterUrl);
 }
 
 export async function addCartItem(payload) {
