@@ -138,7 +138,10 @@ exports.updateQuantity = async (req, res) => {
         const userId = req.user ? req.user.userId : null;
         const sessionId = req.headers['x-session-id'];
         
-        const { productId } = req.params;
+        // 🎯 CORRECTION : On attrape le chiffre de l'URL sous tous ses noms possibles
+        const rawId = req.params.productId || req.params.id || req.params.itemId;
+        const productId = parseInt(rawId);
+        
         const { quantity } = req.body;
 
         if (!userId && !sessionId) {
@@ -153,13 +156,13 @@ exports.updateQuantity = async (req, res) => {
         if (!cart) return res.status(404).json({ message: "Panier introuvable." });
 
         const productData = getFakeProduct(productId.toString());
-        if (productData.stock < quantity) {
+        if (productData && productData.stock < quantity) {
             return res.status(400).json({ message: `Stock insuffisant. Il ne reste que ${productData.stock} article(s).` });
         }
 
         await prisma.cartItem.update({
             where: {
-                cartId_productId: { cartId: cart.id, productId: parseInt(productId) }
+                cartId_productId: { cartId: cart.id, productId: productId }
             },
             data: { quantity: quantity }
         });
@@ -177,7 +180,10 @@ exports.removeItem = async (req, res) => {
     try {
         const userId = req.user ? req.user.userId : null;
         const sessionId = req.headers['x-session-id'];
-        const { productId } = req.params;
+        
+        // 🎯 CORRECTION : On attrape le chiffre de l'URL sous tous ses noms possibles
+        const rawId = req.params.productId || req.params.id || req.params.itemId;
+        const productId = parseInt(rawId);
 
         if (!userId && !sessionId) {
             return res.status(400).json({ message: "Non identifié. Connectez-vous ou fournissez un Session ID." });
@@ -188,7 +194,7 @@ exports.removeItem = async (req, res) => {
 
         await prisma.cartItem.delete({
             where: {
-                cartId_productId: { cartId: cart.id, productId: parseInt(productId) }
+                cartId_productId: { cartId: cart.id, productId: productId }
             }
         });
 
@@ -196,6 +202,10 @@ exports.removeItem = async (req, res) => {
 
     } catch (error) {
         console.error("🚨 ERREUR SUPPRESSION ARTICLE :", error);
+        // Si Prisma ne trouve pas l'article (car déjà supprimé), on évite de planter
+        if (error.code === 'P2025') {
+             return res.status(200).json({ message: "Produit déjà supprimé." });
+        }
         res.status(500).json({ message: "Erreur lors de la suppression de l'article." });
     }
 };
