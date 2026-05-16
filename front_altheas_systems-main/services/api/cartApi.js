@@ -12,7 +12,7 @@ export async function fetchCart() {
       totals: computeCartTotals(mockCart.items),
     };
   }
-
+  // Ton httpClient s'occupe automatiquement d'ajouter le token de connexion !
   return httpClient(API_ROUTES.cart.get);
 }
 
@@ -62,4 +62,9 @@ export async function deleteCartItem(itemId) {
   return httpClient(API_ROUTES.cart.deleteItem(itemId), {
     method: "DELETE",
   });
+}
+
+// 👈 LA FONCTION QUE TON CartContext UTILISE POUR RÉCUPÉRER LE PANIER SERVEUR :
+export async function getCart() {
+  return fetchCart();
 }

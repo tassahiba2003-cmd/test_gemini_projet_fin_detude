@@ -38,8 +38,13 @@ export function persistSession({ token, user, rememberMe }) {
 
 export function clearAuthSession() {
   if (typeof window === "undefined") return;
+  
+  // On supprime la session utilisateur
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(USER_KEY);
   localStorage.removeItem(USER_KEY);
+  
+  // 👈 NOUVEAU : On vide le panier en mémoire pour que le visiteur suivant ne le voie pas !
+  localStorage.removeItem("althea_cart");
 }

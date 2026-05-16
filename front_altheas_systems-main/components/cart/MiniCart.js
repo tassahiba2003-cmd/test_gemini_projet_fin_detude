@@ -25,8 +25,9 @@ export default function MiniCart() {
         </div>
 
         <div className="cart-scroll" style={{ flex: 1, overflowY: "auto", paddingRight: "15px", marginBottom: "15px" }}>
-          {cart.map((item) => (
-            <div key={item.id} style={{ display: "flex", gap: "15px", marginBottom: "20px", borderBottom: "1px solid #f1f5f9", paddingBottom: "20px" }}>
+          {/* Correction appliquée ici (index et key) */}
+          {cart.map((item, index) => (
+            <div key={item.id || `cart-item-${index}`} style={{ display: "flex", gap: "15px", marginBottom: "20px", borderBottom: "1px solid #f1f5f9", paddingBottom: "20px" }}>
               
               {/* 🔗 LIEN SUR L'IMAGE MINIATURE */}
               <Link href={`/products/${item.id}`} onClick={() => setIsMiniCartOpen(false)} style={{ flexShrink: 0 }}>

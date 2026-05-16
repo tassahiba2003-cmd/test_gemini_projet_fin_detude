@@ -32,14 +32,12 @@ function frontendBaseUrl() {
 // --- 1. L'INSCRIPTION ---
 exports.register = async (req, res) => {
     try {
-        // ✅ AJOUT : Récupération des nouveaux champs professionnels depuis le Front
         const { fullName, email, password, company, siret, specialty, address, city, zipCode } = req.body;
 
         const fullNameTrim = fullName != null ? String(fullName).trim() : '';
         const emailClean = email != null ? String(email).toLowerCase().trim() : '';
         const passwordRaw = password != null ? String(password) : '';
 
-        // 🛡️ TES VÉRIFICATIONS INTACTES
         if (!fullNameTrim || !emailClean || !passwordRaw.trim()) {
             return res.status(400).json({ message: "Tous les champs sont obligatoires." });
         }
@@ -64,7 +62,6 @@ exports.register = async (req, res) => {
 
         const passwordHash = await bcrypt.hash(passwordRaw, 10);
 
-        // ✅ AJOUT : Insertion des nouveaux champs dans Prisma
         const newUser = await prisma.user.create({
             data: { 
                 fullName: fullNameTrim, 
@@ -85,7 +82,6 @@ exports.register = async (req, res) => {
         );
         const confirmationPath = `${frontendBaseUrl()}/auth/confirm?token=${encodeURIComponent(validationToken)}`;
 
-        // SIMULATION D'ENVOI D'E-MAIL (Intact)
         console.log("\n=========================================");
         console.log("📧 NOUVEL E-MAIL À ENVOYER À :", newUser.email);
         console.log("Lien de confirmation (page Althea) :");
@@ -98,7 +94,8 @@ exports.register = async (req, res) => {
         res.status(500).json({ message: "Erreur serveur lors de l'inscription." });
     }
 };
-// --- 1b. Confirmer l’e-mail + session (clic sur le lien → front → POST ici) ---
+
+// --- 1b. Confirmer l’e-mail + session ---
 exports.confirmEmail = async (req, res) => {
     try {
         const { token } = req.body;
@@ -112,7 +109,7 @@ exports.confirmEmail = async (req, res) => {
             return res.status(404).json({ message: "Aucun compte ne correspond à ce lien." });
         }
 
-        if (user.isEmailConfirmed) {
+        if (user.isVerified) {
             const sessionToken = jwt.sign(
                 { userId: user.id, email: user.email },
                 process.env.JWT_SECRET,
@@ -127,7 +124,7 @@ exports.confirmEmail = async (req, res) => {
 
         await prisma.user.update({
             where: { id: user.id },
-            data: { isEmailConfirmed: true },
+            data: { isVerified: true },
         });
 
         const sessionToken = jwt.sign(
@@ -147,7 +144,7 @@ exports.confirmEmail = async (req, res) => {
     }
 };
 
-// --- 1c. Ancien lien API / e-mails : redirige vers le front (confirm + auto-login) ---
+// --- 1c. Ancien lien API / e-mails ---
 exports.verifyEmail = async (req, res) => {
     try {
         const { token } = req.params;
@@ -159,29 +156,24 @@ exports.verifyEmail = async (req, res) => {
     }
 };
 
-// --- 3. LA CONNEXION (Mise à jour) ---
-// --- 3. LA CONNEXION (Version finale avec "Se souvenir de moi") ---
+// --- 3. LA CONNEXION ---
 exports.login = async (req, res) => {
     try {
         const { email, password, rememberMe } = req.body;
-        // On récupère le sessionId depuis les headers
         const sessionId = req.headers['x-session-id'];
 
         if (!email || !password) {
             return res.status(400).json({ message: "Email et mot de passe requis." });
         }
 
-        // --- SÉCURITÉ : Nettoyage de l'email (Faille n°3 Deep Audit) ---
         const emailClean = email.toLowerCase().trim();
-
-        // 1. Recherche de l'utilisateur
         const user = await prisma.user.findUnique({ where: { email: emailClean } });
+        
         if (!user) {
             return res.status(401).json({ message: "Identifiants incorrects." });
         }
 
-        // 2. Vérification du mot de passe
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+        const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return res.status(401).json({ 
                 message: "Mot de passe incorrect.",
@@ -190,33 +182,25 @@ exports.login = async (req, res) => {
             });
         }
 
-        // 3. Vérification de l'email
-        if (!user.isEmailConfirmed) {
+        if (!user.isVerified) {
             return res.status(403).json({ 
                 message: "Compte non confirmé. Vérifiez vos e-mails." 
             });
         }
 
-        // --- 4. LOGIQUE DE FUSION (GUEST -> USER) ---
-        // SÉCURITÉ : On vérifie que le sessionId n'est pas le texte "undefined" ou "null" (Faille n°2 Deep Audit)
         if (sessionId && sessionId !== "undefined" && sessionId !== "null") {
             try {
-                // SÉCURITÉ : On utilise une TRANSACTION pour être sûr que tout passe ou rien (Faille n°1 Deep Audit)
                 await prisma.$transaction(async (tx) => {
-                    
-                    // A. FUSION DES ADRESSES
                     await tx.address.updateMany({
                         where: { sessionId: sessionId },
                         data: { userId: user.id, sessionId: null }
                     });
 
-                    // B. CORRECTIF : FUSION DES COMMANDES (Ghost Orders)
                     await tx.order.updateMany({
                         where: { sessionId: sessionId },
                         data: { userId: user.id, sessionId: null }
                     });
 
-                    // C. FUSION DU PANIER
                     const guestCart = await tx.cart.findUnique({
                         where: { sessionId: sessionId },
                         include: { items: true }
@@ -229,13 +213,11 @@ exports.login = async (req, res) => {
                         });
 
                         if (!userCart) {
-                            // Si l'user n'a pas de panier, on lui donne celui de l'invité
                             await tx.cart.update({
                                 where: { id: guestCart.id },
                                 data: { userId: user.id, sessionId: null }
                             });
                         } else {
-                            // Sinon fusion article par article
                             for (const guestItem of guestCart.items) {
                                 const existingItem = userCart.items.find(i => i.productId === guestItem.productId);
                                 
@@ -252,7 +234,6 @@ exports.login = async (req, res) => {
                                     });
                                 }
                             }
-                            // Supprimer le panier invité vide
                             await tx.cart.delete({ where: { id: guestCart.id } });
                         }
                     }
@@ -260,11 +241,9 @@ exports.login = async (req, res) => {
                 console.log(`✅ Fusion réussie pour l'utilisateur ${user.id}`);
             } catch (mergeError) {
                 console.error("⚠️ Erreur lors de la fusion sécurisée :", mergeError);
-                // On continue le login même si la fusion échoue pour ne pas bloquer l'user
             }
         }
 
-        // 5. Génération du Token
         const tokenExpiration = rememberMe ? '30d' : '24h';
         const token = jwt.sign(
             { userId: user.id, email: user.email },
@@ -272,7 +251,6 @@ exports.login = async (req, res) => {
             { expiresIn: tokenExpiration }
         );
 
-        // 6. Réponse finale
         res.status(200).json({
             message: "Connexion réussie ! Vos données ont été synchronisées.",
             token: token,
@@ -297,19 +275,15 @@ exports.forgotPassword = async (req, res) => {
 
         const user = await prisma.user.findUnique({ where: { email } });
 
-        // RÈGLE DE SÉCURITÉ : On ne dit pas explicitement si l'email existe ou pas 
-        // pour éviter le "User Enumeration", mais on suit le cahier des charges.
         if (!user) {
             return res.status(404).json({ 
                 message: "Ce compte n'existe pas. Veuillez vous inscrire ou contacter le support client à support@althea.com." 
             });
         }
 
-        // Génération du Token de réinitialisation (valide 1h pour plus de sécurité)
         const resetToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
         const resetLink = `http://localhost:3000/api/auth/reset-password/${resetToken}`;
 
-        // Simulation d'envoi d'e-mail
         console.log("\n=========================================");
         console.log("📧 RÉINITIALISATION DE MOT DE PASSE POUR :", email);
         console.log("Lien de réinitialisation :", resetLink);
@@ -322,12 +296,11 @@ exports.forgotPassword = async (req, res) => {
     }
 };
 
-
 // --- 5. RÉINITIALISATION RÉELLE DU MOT DE PASSE ---
 exports.resetPassword = async (req, res) => {
     try {
-        const { token } = req.params; // On récupère le token dans l'URL
-        const { password } = req.body; // On récupère le nouveau mot de passe
+        const { token } = req.params; 
+        const { password } = req.body; 
 
         if (!password) {
             return res.status(400).json({ message: "Le nouveau mot de passe est obligatoire." });
@@ -337,29 +310,23 @@ exports.resetPassword = async (req, res) => {
             return res.status(400).json({ message: MSG_PASSWORD_WEAK });
         }
 
-        // B. Vérifier si le token est valide et non expiré
-        // jwt.verify lèvera une erreur si le token a plus d'une heure ou est corrompu
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // C. Hasher le nouveau mot de passe
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // D. Mise à jour dans la base de données via Prisma
         await prisma.user.update({
             where: { id: decoded.userId },
-            data: { passwordHash: passwordHash }
+            data: { password: passwordHash } 
         });
 
         res.status(200).json({ message: "Votre mot de passe a été modifié avec succès. Vous pouvez maintenant vous connecter." });
 
     } catch (error) {
         console.error("Erreur Reset Password:", error.message);
-        // Si le token est expiré, jwt.verify envoie une erreur ici
         res.status(401).json({ message: "Le lien de réinitialisation est invalide ou a expiré." });
     }
 };
-
 
 // --- 6. RENVOYER LE LIEN DE CONFIRMATION ---
 exports.resendConfirmation = async (req, res) => {
@@ -370,22 +337,17 @@ exports.resendConfirmation = async (req, res) => {
             return res.status(400).json({ message: "L'adresse e-mail est requise." });
         }
 
-        // Nettoyage de l'e-mail
         const emailClean = email.toLowerCase().trim();
-
-        // 1. Chercher l'utilisateur
         const user = await prisma.user.findUnique({ where: { email: emailClean } });
 
-        // 2. Vérifications selon ton cahier des charges (être précis sur l'erreur)
         if (!user) {
             return res.status(404).json({ message: "Aucun compte n'est associé à cette adresse e-mail." });
         }
 
-        if (user.isEmailConfirmed) {
+        if (user.isVerified) {
             return res.status(400).json({ message: "Ce compte est déjà confirmé. Vous pouvez vous connecter." });
         }
 
-        // 3. Générer un nouveau token (Valide 24h)
         const validationToken = jwt.sign(
             { userId: user.id },
             process.env.JWT_SECRET,

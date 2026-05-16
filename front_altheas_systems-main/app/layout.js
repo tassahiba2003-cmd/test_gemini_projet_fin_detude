@@ -1,21 +1,22 @@
-"use client"; // Nécessaire pour afficher le compteur du panier en temps réel
+"use client"; 
 import Link from "next/link";
 import Image from "next/image";
 import DesktopFooter from "../components/layout/DesktopFooter";
 import ChatWidget from "../components/chat/ChatWidget";
 import HeaderSearchBar from "../components/layout/HeaderSearchBar";
-// 👈 NOUVEAU : Import du composant MiniCart (assure-toi de l'avoir créé !)
 import MiniCart from "../components/cart/MiniCart"; 
-// 🛒 Import du Context et du Hook pour le compteur
 import { CartProvider, useCart } from "../context/CartContext";
+
+// 👈 NOUVEAU : Imports pour gérer la session et l'affichage de l'utilisateur
+import { useEffect, useState } from "react";
+import { getAuthUser, clearAuthSession } from "../services/authSession";
 
 // Petit composant interne pour gérer le lien du panier avec son badge
 function NavCartLink() {
-  const { cart, setIsMiniCartOpen } = useCart(); // 👈 Modification : on récupère setIsMiniCartOpen
+  const { cart, setIsMiniCartOpen } = useCart(); 
   const itemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    // 👈 Modification : Changement du composant Link en button pour ouvrir le panel
     <button 
       onClick={() => setIsMiniCartOpen(true)}
       style={{ background: "none", border: "none", color: "white", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer", fontSize: "1rem", padding: 0, fontWeight: "500", fontFamily: "inherit" }}
@@ -39,14 +40,49 @@ function NavCartLink() {
   );
 }
 
+// 👈 NOUVEAU : Composant interne pour afficher "Bonjour X" et le bouton Déconnexion
+function NavAccountLink() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Au chargement, on cherche s'il y a un utilisateur connecté
+    setUser(getAuthUser());
+  }, []);
+
+  const handleLogout = () => {
+    clearAuthSession(); // Vide le localStorage
+    window.location.href = "/login"; // Force un rechargement propre vers la page de connexion
+  };
+
+  // Si on a un utilisateur, on affiche son nom et le bouton de déconnexion
+  if (user) {
+    return (
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <Link href="/account" style={{ color: "#38bdf8", textDecoration: "none", fontWeight: "bold" }}>
+          👋 Bonjour {user.fullName?.split(" ")[0] || "Client"}
+        </Link>
+        <button 
+          onClick={handleLogout} 
+          style={{ background: "none", border: "1px solid rgba(255,255,255,0.4)", color: "white", cursor: "pointer", padding: "4px 10px", borderRadius: "5px", fontSize: "0.85rem" }}
+        >
+          Déconnexion
+        </button>
+      </div>
+    );
+  }
+
+  // S'il n'y a personne, on affiche le lien classique vers la connexion
+  return (
+    <Link href="/login" style={{ color: "white", textDecoration: "none" }}>Connexion / Compte</Link>
+  );
+}
+
 export default function RootLayout({ children }) {
   return (
     <html lang="fr">
       <body style={{ margin: 0, padding: 0 }}>
-        {/* 🛒 CartProvider enveloppe tout pour que l'état du panier soit partagé */}
         <CartProvider>
           
-          {/* 👈 NOUVEAU : On ajoute le MiniCart ici, il se superposera au reste du site quand il sera ouvert */}
           <MiniCart />
           
           <header style={{ 
@@ -85,10 +121,10 @@ export default function RootLayout({ children }) {
               <Link href="/products" style={{ color: "white", textDecoration: "none" }}>Catalogue</Link>
               <Link href="/search" style={{ color: "white", textDecoration: "none" }}>Recherche</Link>
               
-              {/* Utilisation du lien dynamique avec compteur */}
               <NavCartLink />
               
-              <Link href="/account" style={{ color: "white", textDecoration: "none" }}>Compte</Link>
+              {/* 👈 MODIFICATION : On utilise le nouveau composant dynamique ici */}
+              <NavAccountLink />
             </nav>
           </header>
 
