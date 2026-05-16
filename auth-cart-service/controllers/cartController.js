@@ -5,71 +5,65 @@ const getFakeProduct = (id) => {
     const products = {
         "1": { name: "iPhone 15", price: 999, stock: 10 },
         "2": { name: "MacBook Air", price: 1200, stock: 5 },
-        "3": { name: "AirPods Pro", price: 250, stock: 50 }
+        "3": { name: "AirPods Pro", price: 250, stock: 20 },
+        "4": { name: "Montre Connectée", price: 199, stock: 15 },
+        "5": { name: "Casque Audio", price: 149, stock: 30 }
     };
-    return products[id] || { name: `Produit n°${id}`, price: 49.99, stock: 100 };
+    return products[id] || { name: `Produit ${id}`, price: 100, stock: 50 };
 };
 
-// --- FONCTION UTILITAIRE : Trouver le panier (Connecté ou Invité) ---
-// Cette fonction nous évite de répéter le même code partout
+// --- FONCTION INTERNE : Trouver ou Créer le Panier ---
 const findCart = async (userId, sessionId) => {
+    let cart = null;
+
     if (userId) {
-        return await prisma.cart.findUnique({ where: { userId: userId }, include: { items: true } });
+        cart = await prisma.cart.findUnique({ where: { userId: userId }, include: { items: true } });
     } else if (sessionId) {
-        return await prisma.cart.findUnique({ where: { sessionId: sessionId }, include: { items: true } });
+        cart = await prisma.cart.findUnique({ where: { sessionId: sessionId }, include: { items: true } });
     }
-    return null;
+
+    if (!cart) {
+        cart = await prisma.cart.create({
+            data: { userId: userId || null, sessionId: userId ? null : sessionId },
+            include: { items: true }
+        });
+    }
+    return cart;
 };
 
-// --- 1. AFFICHER LE PANIER ---
+// --- 1. RÉCUPÉRER LE PANIER ---
 exports.getCart = async (req, res) => {
     try {
         const userId = req.user ? req.user.userId : null;
-        const sessionId = req.headers['x-session-id']; // Récupération depuis le Header
+        const sessionId = req.headers['x-session-id'];
 
         if (!userId && !sessionId) {
-            return res.status(400).json({ message: "Non identifié. Connectez-vous ou fournissez un Session ID." });
+            return res.status(200).json({ items: [] });
         }
 
         const cart = await findCart(userId, sessionId);
 
-        if (!cart || cart.items.length === 0) {
-            return res.status(200).json({ items: [], cartTotal: 0 });
-        }
-
-        const itemsWithDetails = cart.items.map((item) => {
+        const itemsWithDetails = cart.items.map(item => {
             const productData = getFakeProduct(item.productId.toString());
-            const unitPrice = productData.price;
-            const totalPrice = unitPrice * item.quantity;
-
             return {
+                id: item.id,
                 productId: item.productId,
-                name: productData.name,
                 quantity: item.quantity,
-                unitPrice: unitPrice,
-                totalPrice: totalPrice,
-                availableStock: productData.stock 
+                name: productData.name,
+                unitPrice: productData.price,
+                availableStock: productData.stock,
+                totalPrice: productData.price * item.quantity
             };
         });
 
-        const cartTotal = itemsWithDetails.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-
-        res.status(200).json({
-            cartId: cart.id,
-            items: itemsWithDetails,
-            cartTotal: cartTotal
-        });
-
+        res.status(200).json({ id: cart.id, items: itemsWithDetails });
     } catch (error) {
         console.error("🚨 ERREUR RECUPERATION PANIER :", error);
         res.status(500).json({ message: "Erreur serveur lors de la récupération du panier." });
     }
 };
 
-
-
-
-// --- 4. AJOUTER UN PRODUIT AU PANIER (Création du panier si besoin) ---
+// --- 2. AJOUTER UN PRODUIT ---
 exports.addItem = async (req, res) => {
     try {
         const userId = req.user ? req.user.userId : null;
@@ -80,132 +74,125 @@ exports.addItem = async (req, res) => {
             return res.status(400).json({ message: "Non identifié. Connectez-vous ou fournissez un Session ID." });
         }
 
-        // 1. On cherche le panier de cet invité ou utilisateur
-        let cart = await findCart(userId, sessionId);
-
-        // 2. MAGIE : Si le panier n'existe pas, ON LE CRÉE !
-        if (!cart) {
-            cart = await prisma.cart.create({
-                data: {
-                    userId: userId ? userId : undefined,
-                    sessionId: !userId ? sessionId : undefined
-                }
-            });
+        if (!productId || !quantity || quantity < 1) {
+            return res.status(400).json({ message: "Produit ou quantité invalide." });
         }
 
-        // 3. Vérification du stock avec notre Mock
         const productData = getFakeProduct(productId.toString());
-        if (productData.stock < quantity) {
-            return res.status(400).json({ message: "Stock insuffisant." });
-        }
+        const cart = await findCart(userId, sessionId);
 
-        // 4. Vérifier si l'article est déjà dans le panier
         const existingItem = await prisma.cartItem.findFirst({
             where: { cartId: cart.id, productId: parseInt(productId) }
         });
 
         if (existingItem) {
-            // S'il y est déjà, on additionne la quantité
+            const newQuantity = existingItem.quantity + quantity;
+            if (productData.stock < newQuantity) {
+                return res.status(400).json({ message: `Stock insuffisant. Il ne reste que ${productData.stock} article(s).` });
+            }
             await prisma.cartItem.update({
                 where: { id: existingItem.id },
-                data: { quantity: existingItem.quantity + quantity }
+                data: { quantity: newQuantity }
             });
         } else {
-            // Sinon, on crée la nouvelle ligne d'article
+            if (productData.stock < quantity) {
+                 return res.status(400).json({ message: `Stock insuffisant. Il ne reste que ${productData.stock} article(s).` });
+            }
             await prisma.cartItem.create({
-                data: {
-                    cartId: cart.id,
-                    productId: parseInt(productId),
-                    quantity: quantity
-                }
+                data: { cartId: cart.id, productId: parseInt(productId), quantity: quantity }
             });
         }
 
-        res.status(201).json({ message: "Article ajouté avec succès !" });
-
+        res.status(200).json({ message: "Produit ajouté au panier." });
     } catch (error) {
         console.error("🚨 ERREUR AJOUT ARTICLE :", error);
-        res.status(500).json({ message: "Erreur lors de l'ajout au panier." });
+        res.status(500).json({ message: "Erreur serveur lors de l'ajout au panier." });
     }
 };
 
-
-
-
-// --- 2. MODIFIER LA QUANTITÉ ---
+// --- 3. MODIFIER LA QUANTITÉ ---
 exports.updateQuantity = async (req, res) => {
     try {
         const userId = req.user ? req.user.userId : null;
         const sessionId = req.headers['x-session-id'];
-        
-        // 🎯 CORRECTION : On attrape le chiffre de l'URL sous tous ses noms possibles
         const rawId = req.params.productId || req.params.id || req.params.itemId;
         const productId = parseInt(rawId);
-        
         const { quantity } = req.body;
 
         if (!userId && !sessionId) {
-            return res.status(400).json({ message: "Non identifié. Connectez-vous ou fournissez un Session ID." });
-        }
-
-        if (quantity < 1) {
-            return res.status(400).json({ message: "La quantité doit être au minimum de 1." });
+             return res.status(400).json({ message: "Non identifié." });
         }
 
         const cart = await findCart(userId, sessionId);
-        if (!cart) return res.status(404).json({ message: "Panier introuvable." });
+        
+        // On cherche l'article (soit par productId, soit par l'ID de la ligne)
+        const itemToUpdate = cart.items.find(i => i.productId === productId || i.id === productId);
 
-        const productData = getFakeProduct(productId.toString());
-        if (productData && productData.stock < quantity) {
-            return res.status(400).json({ message: `Stock insuffisant. Il ne reste que ${productData.stock} article(s).` });
+        if (!itemToUpdate) {
+            return res.status(404).json({ message: "Article introuvable dans le panier." });
         }
 
         await prisma.cartItem.update({
-            where: {
-                cartId_productId: { cartId: cart.id, productId: productId }
-            },
+            where: { id: itemToUpdate.id },
             data: { quantity: quantity }
         });
 
-        res.status(200).json({ message: "Quantité mise à jour avec succès." });
-
+        res.status(200).json({ message: "Quantité mise à jour." });
     } catch (error) {
-        console.error("🚨 ERREUR MISE À JOUR QUANTITÉ :", error);
-        res.status(500).json({ message: "Erreur lors de la mise à jour de la quantité." });
+        console.error("🚨 ERREUR UPDATE QUANTITE:", error);
+        res.status(500).json({ message: "Erreur serveur." });
     }
 };
 
-// --- 3. SUPPRIMER UN PRODUIT ---
+// --- 4. SUPPRIMER UN PRODUIT ---
 exports.removeItem = async (req, res) => {
     try {
         const userId = req.user ? req.user.userId : null;
         const sessionId = req.headers['x-session-id'];
-        
-        // 🎯 CORRECTION : On attrape le chiffre de l'URL sous tous ses noms possibles
         const rawId = req.params.productId || req.params.id || req.params.itemId;
         const productId = parseInt(rawId);
 
         if (!userId && !sessionId) {
-            return res.status(400).json({ message: "Non identifié. Connectez-vous ou fournissez un Session ID." });
+             return res.status(400).json({ message: "Non identifié." });
         }
 
         const cart = await findCart(userId, sessionId);
-        if (!cart) return res.status(404).json({ message: "Panier introuvable." });
+
+        // On cherche l'article (soit par productId, soit par l'ID de la ligne)
+        const itemToDelete = cart.items.find(i => i.productId === productId || i.id === productId);
+
+        if (!itemToDelete) {
+             // S'il est déjà supprimé, on renvoie 200 pour dire au Front que c'est OK !
+             return res.status(200).json({ message: "Article déjà supprimé." });
+        }
 
         await prisma.cartItem.delete({
-            where: {
-                cartId_productId: { cartId: cart.id, productId: productId }
-            }
+            where: { id: itemToDelete.id }
         });
 
-        res.status(200).json({ message: "Produit supprimé du panier." });
-
+        res.status(200).json({ message: "Article supprimé." });
     } catch (error) {
-        console.error("🚨 ERREUR SUPPRESSION ARTICLE :", error);
-        // Si Prisma ne trouve pas l'article (car déjà supprimé), on évite de planter
-        if (error.code === 'P2025') {
-             return res.status(200).json({ message: "Produit déjà supprimé." });
-        }
-        res.status(500).json({ message: "Erreur lors de la suppression de l'article." });
+        console.error("🚨 ERREUR SUPPRESSION:", error);
+        res.status(500).json({ message: "Erreur serveur." });
+    }
+};
+
+// --- 5. VIDER LE PANIER ---
+exports.clearCart = async (req, res) => {
+    try {
+        const userId = req.user ? req.user.userId : null;
+        const sessionId = req.headers['x-session-id'];
+
+        const cart = await findCart(userId, sessionId);
+        if (!cart) return res.status(200).json({ message: "Le panier est déjà vide." });
+
+        await prisma.cartItem.deleteMany({
+            where: { cartId: cart.id }
+        });
+
+        res.status(200).json({ message: "Panier vidé avec succès." });
+    } catch (error) {
+        console.error("🚨 ERREUR CLEAR PANIER :", error);
+        res.status(500).json({ message: "Erreur serveur lors du vidage du panier." });
     }
 };
