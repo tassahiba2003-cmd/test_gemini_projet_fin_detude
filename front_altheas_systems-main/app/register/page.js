@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-// 💡 Correction : On importe la fonction centralisée depuis l'authApi
-import { registerUser } from "../../services/api/authApi"; 
+// 💡 Correction : On importe 'registerAccount' depuis le bon fichier 'registrationService'
+import { registerAccount } from "../../services/registrationService"; 
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -54,8 +54,8 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      // 🚀 On utilise l'API centralisée plutôt qu'un fetch brut avec URL en dur
-      const res = await registerUser({
+      // 🚀 Appel de la bonne fonction 'registerAccount'
+      const res = await registerAccount({
         fullName: `${formData.firstName} ${formData.lastName}`,
         email: formData.email,
         password: formData.password,

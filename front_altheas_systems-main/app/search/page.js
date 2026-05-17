@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react"; // 💡 Ajout de Suspense ici
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { fetchAllProducts } from "../../services/api/catalogApi";
 import { useCart } from "../../context/CartContext";
 
-export default function SearchPage() {
+// 🚀 On déplace la logique dans un sous-composant interne
+function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
   const { addToCart } = useCart();
@@ -13,8 +14,8 @@ export default function SearchPage() {
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [sortBy, setSortBy] = useState("newest"); // Par défaut Nouveautés
-  const [selectedCategories, setSelectedCategories] = useState([]); // Multicritère
+  const [sortBy, setSortBy] = useState("newest"); 
+  const [selectedCategories, setSelectedCategories] = useState([]); 
   const [maxPrice, setMaxPrice] = useState(300000);
   const [onlyInStock, setOnlyInStock] = useState(false);
 
@@ -80,7 +81,7 @@ export default function SearchPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "50px" }}>
         
-        {/* SIDEBAR FILTRES (MULTICRITÈRES Demandé Page 8) */}
+        {/* SIDEBAR FILTRES */}
         <aside style={{ alignSelf: "start", position: "sticky", top: "120px" }}>
           <div style={{ marginBottom: "40px" }}>
             <h3 style={{ fontSize: "1rem", marginBottom: "20px", borderBottom: "1px solid #f1f5f9", paddingBottom: "10px" }}>Catégories</h3>
@@ -138,5 +139,14 @@ export default function SearchPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+// 💡 Export principal enveloppé dans un Suspense Boundary requis pour le build de production Next.js
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: "100px", textAlign: "center" }}>Recherche dans le catalogue...</div>}>
+      <SearchContent />
+    </Suspense>
   );
 }
