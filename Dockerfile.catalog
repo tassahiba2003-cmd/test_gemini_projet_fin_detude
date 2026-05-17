@@ -1,0 +1,24 @@
+# --- ÉTAPE 1 : Compilation (Build) ---
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
+WORKDIR /app
+
+# 1. Copier et compiler en premier le module 'shared-models'
+COPY shared-models /app/shared-models
+RUN cd shared-models && mvn clean install -DskipTests
+
+# 2. Copier et compiler le 'catalog-service'
+COPY catalog-service /app/catalog-service
+RUN cd catalog-service && mvn clean package -DskipTests
+
+# --- ÉTAPE 2 : Exécution (Image finale allégée) ---
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+# On récupère uniquement le fichier .jar final créé à l'étape précédente
+COPY --from=build /app/catalog-service/target/*.jar app.jar
+
+# On expose le port classique de Spring Boot
+EXPOSE 8080
+
+# On lance l'application Java
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -1,24 +1,16 @@
-# On part d'une image Linux très légère avec Node.js 18 préinstallé
-FROM node:18-alpine
-
-# On crée un dossier /app dans notre conteneur
+FROM node:20-alpine
 WORKDIR /app
 
-# On copie d'abord les fichiers de dépendances (pour optimiser le cache Docker)
+# Copie des fichiers de dépendances
 COPY package*.json ./
-
-# On installe les librairies
-RUN npm install
-
-# On génère le client Prisma (très important pour que ta BDD marche dans Docker !)
 COPY prisma ./prisma/
+
+# Installation et génération du client
+RUN npm install
 RUN npx prisma generate
 
-# On copie tout le reste de ton code source
+# Copie du reste du code
 COPY . .
 
-# On ouvre le port 5002 vers l'extérieur
-EXPOSE 5002
-
-# La commande pour démarrer ton serveur
-CMD ["node", "server.js"]
+EXPOSE 5000
+CMD ["npm", "start"]
