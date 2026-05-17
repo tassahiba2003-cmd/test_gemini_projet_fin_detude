@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  # Notre premier service : L'API d'authentification et du panier
+  auth-cart-api:
+    build:
+      context: ./auth-cart-service
+      dockerfile: Dockerfile
+    container_name: althea-auth-cart
+    ports:
+      - "5002:5002"
+    # On lui dit de lire tes variables d'environnement (et ta future BDD en ligne !)
+    env_file:
+      - ./auth-cart-service/.env
+    restart: always
