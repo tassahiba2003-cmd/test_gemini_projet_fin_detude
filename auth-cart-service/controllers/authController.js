@@ -282,8 +282,7 @@ exports.forgotPassword = async (req, res) => {
         }
 
         const resetToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        const resetLink = `http://localhost:3000/api/auth/reset-password/${resetToken}`;
-
+        const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
         console.log("\n=========================================");
         console.log("📧 RÉINITIALISATION DE MOT DE PASSE POUR :", email);
         console.log("Lien de réinitialisation :", resetLink);

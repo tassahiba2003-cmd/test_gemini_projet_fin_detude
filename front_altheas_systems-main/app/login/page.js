@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { loginWithCredentials } from "../../services/api/authApi"; 
-// 👈 On importe la fonction pour envoyer les articles au Backend !
 import { addCartItem } from "../../services/api/cartApi"; 
 import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // NOUVEAU : État pour "Se souvenir de moi"
+  const [rememberMe, setRememberMe] = useState(false); 
   const [error, setError] = useState(null);
 
   const handleLogin = async (e) => {
@@ -15,8 +16,8 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // 1. On se connecte au Backend
-      const res = await loginWithCredentials({ email, password });
+      // 1. On se connecte au Backend en passant rememberMe
+      const res = await loginWithCredentials({ email, password, rememberMe });
       
       if (res.ok) {
         
@@ -27,18 +28,13 @@ export default function LoginPage() {
           try {
             const localCart = JSON.parse(localCartRaw);
             
-            // S'il y a au moins 1 article dans le panier invité
             if (localCart.length > 0) {
-              
-              // On affiche le message pour demander à l'utilisateur
               const wantToSync = window.confirm(
                 "Vous avez ajouté des articles en mode invité. Souhaitez-vous les conserver et les ajouter à votre compte ?"
               );
 
-              // S'il dit OUI, on les envoie un par un à la base de données
               if (wantToSync) {
                 for (const item of localCart) {
-                  // On s'assure d'utiliser le bon ID
                   const productId = item.id || item.productId;
                   await addCartItem({ productId: productId, quantity: item.quantity });
                 }
@@ -63,11 +59,11 @@ export default function LoginPage() {
   };
 
   return (
-    <main style={{ maxWidth: "400px", margin: "80px auto", padding: "40px", backgroundColor: "white", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: "1.8rem", textAlign: "center", marginBottom: "30px" }}>Connexion</h1>
+    <main style={{ maxWidth: "400px", margin: "80px auto", padding: "40px", backgroundColor: "white", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.05)", fontFamily: "'Inter', sans-serif" }}>
+      <h1 style={{ fontSize: "1.8rem", textAlign: "center", marginBottom: "30px", color: "#0f172a" }}>Connexion</h1>
       
       {error && (
-        <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "8px", marginBottom: "20px", textAlign: "center", fontWeight: "bold", fontSize: "0.9rem" }}>
+        <div style={{ backgroundColor: "#fef2f2", color: "#dc2626", padding: "15px", borderRadius: "10px", marginBottom: "20px", textAlign: "center", fontWeight: "bold", fontSize: "0.9rem" }}>
           {error}
         </div>
       )}
@@ -75,29 +71,49 @@ export default function LoginPage() {
       <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <input 
           type="email" 
-          placeholder="Email" 
+          placeholder="Email professionnel" 
           required 
           value={email} 
           onChange={e => setEmail(e.target.value)} 
           style={inputStyle} 
         />
-        <input 
-          type="password" 
-          placeholder="Mot de passe" 
-          required 
-          value={password} 
-          onChange={e => setPassword(e.target.value)} 
-          style={inputStyle} 
-        />
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <input 
+            type="password" 
+            placeholder="Mot de passe" 
+            required 
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            style={inputStyle} 
+          />
+          {/* NOUVEAU : Lien Mot de passe oublié */}
+          <Link href="/forgot-password" style={{ fontSize: "0.85rem", color: "#2563eb", textDecoration: "none", alignSelf: "flex-end", fontWeight: "500" }}>
+            Mot de passe oublié ?
+          </Link>
+        </div>
+
+        {/* NOUVEAU : Case à cocher "Se souvenir de moi" */}
+        <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.9rem", color: "#475569", cursor: "pointer" }}>
+          <input 
+            type="checkbox" 
+            checked={rememberMe} 
+            onChange={e => setRememberMe(e.target.checked)} 
+            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+          />
+          Se souvenir de moi
+        </label>
+
         <button type="submit" style={btnStyle}>Se connecter</button>
       </form>
 
-      <p style={{ marginTop: "20px", textAlign: "center" }}>
-        Nouveau client ? <Link href="/register" style={{ color: "#2563eb", fontWeight: "bold" }}>Créer un compte</Link>
-      </p>
+      <div style={{ marginTop: "30px", textAlign: "center", fontSize: "0.95rem", color: "#64748b", borderTop: "1px solid #e2e8f0", paddingTop: "20px" }}>
+        Nouveau client ? <br/>
+        <Link href="/register" style={{ color: "#003d5c", fontWeight: "bold", display: "inline-block", marginTop: "10px", textDecoration: "none" }}>Créer un compte professionnel</Link>
+      </div>
     </main>
   );
 }
 
-const inputStyle = { padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "1rem" };
-const btnStyle = { backgroundColor: "#003d5c", color: "white", padding: "14px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: "1rem" };
+const inputStyle = { padding: "15px", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "1rem", outline: "none", width: "100%", boxSizing: "border-box" };
+const btnStyle = { backgroundColor: "#0f172a", color: "white", padding: "16px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "bold", fontSize: "1.1rem", transition: "background-color 0.2s" };

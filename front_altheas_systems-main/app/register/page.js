@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+// 💡 Correction : On importe la fonction centralisée depuis l'authApi
+import { registerUser } from "../../services/api/authApi"; 
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -39,7 +41,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // 🧠 LOGIQUE D'ERREUR DYNAMIQUE ET CLAIRE
     const missing = [];
     if (!passwordCriteria.length) missing.push("8 caractères minimum");
     if (!passwordCriteria.upper) missing.push("une majuscule");
@@ -53,24 +54,20 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch("http://localhost:5002/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: `${formData.firstName} ${formData.lastName}`,
-          email: formData.email,
-          password: formData.password,
-          company: formData.company,
-          siret: formData.siret,
-          specialty: formData.specialty,
-          address: formData.address,
-          city: formData.city,
-          zipCode: formData.zipCode
-        }),
+      // 🚀 On utilise l'API centralisée plutôt qu'un fetch brut avec URL en dur
+      const res = await registerUser({
+        fullName: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        password: formData.password,
+        company: formData.company,
+        siret: formData.siret,
+        specialty: formData.specialty,
+        address: formData.address,
+        city: formData.city,
+        zipCode: formData.zipCode
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Erreur lors de l'inscription.");
+      if (!res.ok) throw new Error(res.message || "Erreur lors de l'inscription.");
 
       setSuccessMessage("Compte créé ! Un mail de confirmation a été envoyé à " + formData.email);
       setTimeout(() => router.push("/login"), 5000);
@@ -125,7 +122,7 @@ export default function RegisterPage() {
           </div>
           <input type="password" required placeholder="Confirmer *" style={inputStyle} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} />
 
-          <button type="submit" disabled={isLoading} style={{ gridColumn: "span 2", padding: "18px", backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
+          <button type="submit" disabled={isLoading} style={{ gridColumn: "span 2", padding: "18px", backgroundColor: "#0f172a", color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "1.1rem" }}>
             {isLoading ? "Traitement..." : "Valider mon inscription professionnelle"}
           </button>
         </form>
